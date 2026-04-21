@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DL Partners — Regime Detection Model</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0d10;
+  --surface:#0f1318;
+  --surface2:#141920;
+  --surface3:#1a2030;
+  --border:#1e2a38;
+  --border2:#253245;
+  --text:#c8d8e8;
+  --text2:#7090a8;
+  --text3:#3a5068;
+  --blue:#4a9eff;
+  --blue-dim:#0d1f35;
+  --green:#3dd68c;
+  --green-dim:#0a2018;
+  --amber:#f5a623;
+  --amber-dim:#2a1a04;
+  --red:#ff5f5f;
+  --red-dim:#2a0f0f;
+  --purple:#a78bfa;
+  --purple-dim:#1a1030;
+  --mono:'DM Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5}
+
+/* LAYOUT */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.logo{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text);letter-spacing:0.12em}
+.logo span{color:var(--blue)}
+.version{font-family:var(--mono);font-size:10px;color:var(--text3);padding:2px 6px;border:1px solid var(--border2);border-radius:2px}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.live-dot{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text2)}
+.live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.ts{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+/* LIVE QUOTES STRIP */
+.qstrip{display:flex;gap:14px;padding:6px 20px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;flex-shrink:0;min-height:30px}
+.qchip{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:5px;align-items:baseline;letter-spacing:0.04em}
+.qchip-sym{color:var(--text3);text-transform:uppercase}
+.qchip-val{color:var(--text);font-weight:500}
+.qchip-chg{font-size:9px;padding:1px 4px;border-radius:2px}
+.qchg-up{color:var(--green);background:var(--green-dim)}
+.qchg-dn{color:var(--red);background:var(--red-dim)}
+.qchg-flat{color:var(--text3)}
+.qstatus{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px}
+.qstatus .qdot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+.qstatus.ok .qdot{background:var(--green);animation:pulse 2s infinite}
+.qstatus.err .qdot{background:var(--red)}
+.qbtn{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid var(--border2);border-radius:2px;background:transparent;color:var(--text2);cursor:pointer;letter-spacing:0.04em}
+.qbtn:hover{border-color:var(--blue);color:var(--blue)}
+
+/* TABS */
+.tabs{display:flex;align-items:center;gap:0;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{font-family:var(--mono);font-size:11px;padding:10px 16px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;letter-spacing:0.06em;text-transform:uppercase}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-content{display:none;flex:1;overflow-y:auto}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* MODEL TAB */
+.model-layout{display:flex;flex-direction:column;gap:0;padding:16px;flex:1}
+
+/* TRAFFIC LIGHT COMPOSITE */
+.tl-wrap{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:8px;margin-bottom:12px}
+.tl-master{border-radius:5px;padding:14px 18px;display:flex;flex-direction:column;justify-content:space-between;min-height:72px;border:1px solid transparent;transition:all 0.3s}
+.tl-master-label{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;margin-bottom:6px}
+.tl-master-state{font-family:var(--mono);font-size:18px;font-weight:500;line-height:1.2;letter-spacing:-0.01em}
+.tl-master-sub{font-family:var(--mono);font-size:10px;opacity:0.6;margin-top:6px;letter-spacing:0.04em}
+.tl-pill{border-radius:5px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;min-height:72px;border:1px solid transparent;transition:all 0.3s;cursor:default}
+.tl-pill-label{font-family:var(--mono);font-size:9px;letter-spacing:0.10em;text-transform:uppercase;opacity:0.65;margin-bottom:4px}
+.tl-pill-state{font-family:var(--mono);font-size:13px;font-weight:500;line-height:1.3}
+.tl-pill-arrow{font-size:18px;font-weight:700;margin-top:4px;line-height:1}
+
+/* Traffic light colour states */
+.tl-green{background:#0d2e1a;border-color:#1a5c33;color:#3dd68c}
+.tl-green .tl-pill-arrow,.tl-green .tl-master-state{color:#3dd68c}
+.tl-amber{background:#2a1c04;border-color:#5a3a08;color:#f5a623}
+.tl-amber .tl-pill-arrow,.tl-amber .tl-master-state{color:#f5a623}
+.tl-red{background:#2a0e0e;border-color:#5c1c1c;color:#ff5f5f}
+.tl-red .tl-pill-arrow,.tl-red .tl-master-state{color:#ff5f5f}
+.tl-blue{background:#0d1f35;border-color:#1a3a60;color:#4a9eff}
+.tl-blue .tl-pill-arrow,.tl-blue .tl-master-state{color:#4a9eff}
+.tl-neutral{background:var(--surface);border-color:var(--border);color:var(--text2)}
+.tl-neutral .tl-pill-arrow,.tl-neutral .tl-master-state{color:var(--text2)}
+
+.badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:2px;border:1px solid;letter-spacing:0.04em}
+.badge-blue{background:var(--blue-dim);color:var(--blue);border-color:var(--blue)}
+.badge-green{background:var(--green-dim);color:var(--green);border-color:var(--green)}
+.badge-amber{background:var(--amber-dim);color:var(--amber);border-color:var(--amber)}
+.badge-red{background:var(--red-dim);color:var(--red);border-color:var(--red)}
+.badge-purple{background:var(--purple-dim);color:var(--purple);border-color:var(--purple)}
+
+.pillars-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.pillar-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.pillar-header{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.pillar-title{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase}
+.pillar-score{font-family:var(--mono);font-size:18px;font-weight:300}
+.pillar-body{padding:10px 12px}
+.signal-row{margin-bottom:8px}
+.signal-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.signal-name{font-size:11px;color:var(--text2)}
+.signal-val{font-family:var(--mono);font-size:11px;font-weight:500}
+.signal-track{height:3px;background:var(--border2);border-radius:1px;overflow:hidden}
+.signal-fill{height:100%;border-radius:1px;transition:width 0.3s}
+.pillar-footer{padding:8px 12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.pillar-state{font-family:var(--mono);font-size:10px;font-weight:500}
+.pillar-conf{font-size:10px;color:var(--text3)}
+.score-bar-wrap{height:3px;background:var(--border2);border-radius:1px;overflow:hidden;margin:6px 12px 8px}
+.score-bar-fill{height:100%;border-radius:1px;transition:width 0.3s}
+
+.bottom-grid{display:grid;grid-template-columns:3fr 2fr;gap:10px}
+.implications-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:12px}
+.impl-header{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.impl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.impl-col-title{font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;font-family:var(--mono)}
+.impl-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)}
+.impl-row:last-child{border-bottom:none}
+.impl-key{font-size:11px;color:var(--text2)}
+.impl-val{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text)}
+
+.analogue-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:12px}
+.analogue-header{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px}
+.analogue-text{font-size:12px;color:var(--text2);line-height:1.6;font-style:italic;border-left:2px solid var(--border2);padding-left:10px}
+
+.controls-strip{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:10px 12px;margin-bottom:12px}
+.controls-inner{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ctrl-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;border:1px solid var(--border2);border-radius:2px;background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;letter-spacing:0.04em}
+.ctrl-btn:hover{border-color:var(--blue);color:var(--blue)}
+.ctrl-sep{width:1px;height:16px;background:var(--border2)}
+.ctrl-label{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+/* SLIDERS PANEL */
+.sliders-panel{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:12px}
+.sliders-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.slider-group-title{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.slider-item{margin-bottom:10px}
+.slider-item:last-child{margin-bottom:0}
+.slider-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.slider-name{font-size:11px;color:var(--text2)}
+.slider-readout{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text);min-width:50px;text-align:right}
+input[type=range]{width:100%;height:2px;-webkit-appearance:none;appearance:none;background:var(--border2);border-radius:1px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--blue);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:var(--blue);cursor:pointer;border:none}
+.slider-bounds{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:2px}
+
+/* NOTES TAB */
+.notes-layout{padding:24px;max-width:960px;margin:0 auto}
+.notes-section{margin-bottom:32px}
+.notes-h1{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--text);letter-spacing:0.06em;margin-bottom:4px}
+.notes-subtitle{font-size:12px;color:var(--text3);margin-bottom:16px;font-style:italic}
+.notes-divider{height:1px;background:var(--border);margin-bottom:16px}
+.notes-body{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:12px}
+.notes-body strong{color:var(--text);font-weight:500}
+.pillar-note{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:12px}
+.pillar-note-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.pillar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pillar-note-title{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text)}
+.pillar-note-sub{font-size:11px;color:var(--text3);margin-left:auto;font-style:italic}
+.field-table{width:100%;border-collapse:collapse;font-size:12px}
+.field-table th{text-align:left;padding:6px 10px;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);font-weight:500}
+.field-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.field-table tr:last-child td{border-bottom:none}
+.field-name{color:var(--text);font-family:var(--mono);font-size:11px}
+.field-logic{color:var(--text2);line-height:1.5}
+.field-source{color:var(--blue);font-family:var(--mono);font-size:10px}
+.field-weight{font-family:var(--mono);font-size:11px;color:var(--amber)}
+.status-pill{font-size:10px;padding:1px 6px;border-radius:10px;border:1px solid;font-family:var(--mono);white-space:nowrap}
+.sp-ok{background:var(--green-dim);color:var(--green);border-color:var(--green)}
+.sp-warn{background:var(--amber-dim);color:var(--amber);border-color:var(--amber)}
+.sp-dead{background:var(--red-dim);color:var(--red);border-color:var(--red)}
+
+.logic-box{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.8}
+.logic-box .comment{color:var(--text3)}
+.logic-box .keyword{color:var(--purple)}
+.logic-box .func{color:var(--blue)}
+.logic-box .val{color:var(--green)}
+
+/* DATA TAB */
+.data-layout{padding:20px;max-width:960px;margin:0 auto}
+.data-section{margin-bottom:24px}
+.data-h1{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.source-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px;margin-bottom:8px}
+.source-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.source-icon{width:28px;height:28px;border-radius:3px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:500;color:var(--text2);border:1px solid var(--border2);flex-shrink:0}
+.source-name{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text)}
+.source-desc{font-size:11px;color:var(--text3);margin-top:1px}
+.source-link{font-family:var(--mono);font-size:10px;color:var(--blue);text-decoration:none;margin-left:auto;white-space:nowrap}
+.source-link:hover{text-decoration:underline}
+.ticker-grid{display:flex;flex-wrap:wrap;gap:6px}
+.ticker-chip{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:2px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:default}
+.ticker-chip.live{border-color:var(--green);color:var(--green);background:var(--green-dim)}
+.ticker-chip.warn{border-color:var(--amber);color:var(--amber);background:var(--amber-dim)}
+.ticker-chip.dead{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+
+.install-block{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;font-family:var(--mono);font-size:11px;color:var(--green);margin-top:10px;line-height:2}
+.install-block .comment{color:var(--text3)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* PERSISTENCE DOTS */
+.pdots{display:inline-flex;gap:3px;align-items:center}
+.pdot{width:6px;height:6px;border-radius:50%}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">DL<span>·</span>PARTNERS</div>
+    <div style="width:1px;height:16px;background:var(--border2)"></div>
+    <div class="logo" style="color:var(--text2);letter-spacing:0.06em;font-weight:300">REGIME DETECTION ENGINE</div>
+    <div class="version">v2.1</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-dot" id="live-dot">LIVE</div>
+    <div class="ts" id="clock">—</div>
+    <div style="display:flex;gap:6px">
+      <button class="ctrl-btn" onclick="loadScenario('2022')">2022 Bear</button>
+      <button class="ctrl-btn" onclick="loadScenario('2017')">2017 Gold</button>
+      <button class="ctrl-btn" onclick="loadScenario('2020')">Mar 2020</button>
+      <button class="ctrl-btn" onclick="loadScenario('2018')">Oct 2018</button>
+      <button class="ctrl-btn" onclick="randomize()">Randomize</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE QUOTES STRIP -->
+<div class="qstrip" id="qstrip">
+  <div class="qchip"><span class="qchip-sym">SPY</span><span class="qchip-val" id="q-spy">—</span><span class="qchip-chg" id="qc-spy"></span></div>
+  <div class="qchip"><span class="qchip-sym">VIX</span><span class="qchip-val" id="q-vix">—</span><span class="qchip-chg" id="qc-vix"></span></div>
+  <div class="qchip"><span class="qchip-sym">VVIX</span><span class="qchip-val" id="q-vvix">—</span><span class="qchip-chg" id="qc-vvix"></span></div>
+  <div class="qchip"><span class="qchip-sym">SKEW</span><span class="qchip-val" id="q-skew">—</span><span class="qchip-chg" id="qc-skew"></span></div>
+  <div class="qchip"><span class="qchip-sym">VIX9D</span><span class="qchip-val" id="q-vix9d">—</span><span class="qchip-chg" id="qc-vix9d"></span></div>
+  <div class="qchip"><span class="qchip-sym">VIX3M</span><span class="qchip-val" id="q-vix3m">—</span><span class="qchip-chg" id="qc-vix3m"></span></div>
+  <div class="qchip"><span class="qchip-sym">TLT</span><span class="qchip-val" id="q-tlt">—</span><span class="qchip-chg" id="qc-tlt"></span></div>
+  <div class="qchip"><span class="qchip-sym">GLD</span><span class="qchip-val" id="q-gld">—</span><span class="qchip-chg" id="qc-gld"></span></div>
+  <div class="qchip"><span class="qchip-sym">CPER</span><span class="qchip-val" id="q-cper">—</span><span class="qchip-chg" id="qc-cper"></span></div>
+  <div class="qchip"><span class="qchip-sym">DXY</span><span class="qchip-val" id="q-dxy">—</span><span class="qchip-chg" id="qc-dxy"></span></div>
+  <div class="qstatus" id="qstatus"><span class="qdot"></span><span id="qstatus-text">Fetching live data...</span><button class="qbtn" onclick="fetchLive()">Refresh</button></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('model',this)">Model</div>
+  <div class="tab" onclick="switchTab('inputs',this)">Inputs</div>
+  <div class="tab" onclick="switchTab('notes',this)">Notes</div>
+  <div class="tab" onclick="switchTab('data',this)">Data sources</div>
+</div>
+
+<!-- MODEL TAB -->
+<div class="tab-content active" id="tab-model">
+<div class="model-layout">
+
+  <!-- TRAFFIC LIGHT COMPOSITE -->
+  <div class="tl-wrap">
+    <div class="tl-master tl-neutral" id="tl-master">
+      <div class="tl-master-label">Composite regime</div>
+      <div class="tl-master-state" id="composite-text">Computing...</div>
+      <div class="tl-master-sub" id="tl-persist">Persistence filter: 3-day</div>
+    </div>
+    <div class="tl-pill tl-neutral" id="tl-struct">
+      <div class="tl-pill-label">P1 · Structure</div>
+      <div class="tl-pill-state" id="cs-struct">—</div>
+      <div class="tl-pill-arrow" id="tl-arrow-struct">—</div>
+    </div>
+    <div class="tl-pill tl-neutral" id="tl-appetite">
+      <div class="tl-pill-label">P2 · Appetite</div>
+      <div class="tl-pill-state" id="cs-appetite">—</div>
+      <div class="tl-pill-arrow" id="tl-arrow-appetite">—</div>
+    </div>
+    <div class="tl-pill tl-neutral" id="tl-vol">
+      <div class="tl-pill-label">P3 · Vol regime</div>
+      <div class="tl-pill-state" id="cs-vol">—</div>
+      <div class="tl-pill-arrow" id="tl-arrow-vol">—</div>
+    </div>
+    <div class="tl-pill tl-neutral" id="tl-liq">
+      <div class="tl-pill-label">P4 · Liquidity</div>
+      <div class="tl-pill-state" id="cs-liq">—</div>
+      <div class="tl-pill-arrow" id="tl-arrow-liq">—</div>
+    </div>
+  </div>
+
+  <!-- PILLAR CARDS -->
+  <div class="pillars-grid">
+
+    <div class="pillar-card">
+      <div class="pillar-header">
+        <div class="pillar-title" style="color:var(--blue)">P1 — Market structure</div>
+        <div class="pillar-score" id="p1-score" style="color:var(--blue)">—</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-fill" id="p1-bar" style="background:var(--blue);width:0%"></div>
+      </div>
+      <div class="pillar-body">
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">ADX (14)</span><span class="signal-val" id="d-adx">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-adx" style="background:var(--blue)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Hurst exponent</span><span class="signal-val" id="d-hurst">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-hurst" style="background:var(--blue)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Return autocorr</span><span class="signal-val" id="d-autocorr">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-autocorr" style="background:var(--blue)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Price vs MA200</span><span class="signal-val" id="d-madisperse">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-madisperse" style="background:var(--blue)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">ATR slope (30d)</span><span class="signal-val" id="d-atr">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-atr" style="background:var(--blue)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Cross-asset trend</span><span class="signal-val" id="d-catc">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-catc" style="background:var(--blue)"></div></div>
+        </div>
+      </div>
+      <div class="pillar-footer">
+        <div class="pillar-state" id="p1-label" style="color:var(--blue)">—</div>
+        <div class="pillar-conf" id="p1-conf">—</div>
+      </div>
+    </div>
+
+    <div class="pillar-card">
+      <div class="pillar-header">
+        <div class="pillar-title" style="color:var(--green)">P2 — Risk appetite</div>
+        <div class="pillar-score" id="p2-score" style="color:var(--green)">—</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-fill" id="p2-bar" style="background:var(--green);width:0%"></div>
+      </div>
+      <div class="pillar-body">
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">HY credit spread</span><span class="signal-val" id="d-hycredit">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-hycredit" style="background:var(--green)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">VIX term structure</span><span class="signal-val" id="d-vixterm">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-vixterm" style="background:var(--green)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Copper/gold ratio</span><span class="signal-val" id="d-copgold">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-copgold" style="background:var(--green)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">SPY/TLT z-score</span><span class="signal-val" id="d-spytlt">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-spytlt" style="background:var(--green)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">DXY 20d ROC</span><span class="signal-val" id="d-dxy">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-dxy" style="background:var(--green)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">STLFSI4</span><span class="signal-val" id="d-ted">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-ted" style="background:var(--green)"></div></div>
+        </div>
+      </div>
+      <div class="pillar-footer">
+        <div class="pillar-state" id="p2-label" style="color:var(--green)">—</div>
+        <div class="pillar-conf" id="p2-conf">—</div>
+      </div>
+    </div>
+
+    <div class="pillar-card">
+      <div class="pillar-header">
+        <div class="pillar-title" style="color:var(--amber)">P3 — Volatility regime</div>
+        <div class="pillar-score" id="p3-score" style="color:var(--amber)">—</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-fill" id="p3-bar" style="background:var(--amber);width:0%"></div>
+      </div>
+      <div class="pillar-body">
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">VIX level</span><span class="signal-val" id="d-vix">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-vix" style="background:var(--amber)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Realized vs implied</span><span class="signal-val" id="d-rviv">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-rviv" style="background:var(--amber)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">VVIX level</span><span class="signal-val" id="d-vvix">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-vvix" style="background:var(--amber)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">VVIX 5d accel.</span><span class="signal-val" id="d-vvixroc">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-vvixroc" style="background:var(--amber)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Put/call skew</span><span class="signal-val" id="d-skew">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-skew" style="background:var(--amber)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">VIX9D − VIX3M</span><span class="signal-val" id="d-vixslope">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-vixslope" style="background:var(--amber)"></div></div>
+        </div>
+      </div>
+      <div class="pillar-footer">
+        <div class="pillar-state" id="p3-label" style="color:var(--amber)">—</div>
+        <div class="pillar-conf" id="p3-conf">—</div>
+      </div>
+    </div>
+
+    <div class="pillar-card">
+      <div class="pillar-header">
+        <div class="pillar-title" style="color:var(--purple)">P4 — Liquidity</div>
+        <div class="pillar-score" id="p4-score" style="color:var(--purple)">—</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-fill" id="p4-bar" style="background:var(--purple);width:0%"></div>
+      </div>
+      <div class="pillar-body">
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Amihud ratio</span><span class="signal-val" id="d-amihud">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-amihud" style="background:var(--purple)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">SOFR vs DFF spread</span><span class="signal-val" id="d-sofr">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-sofr" style="background:var(--purple)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">SPY volume z-score</span><span class="signal-val" id="d-spyvol">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-spyvol" style="background:var(--purple)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Bid-ask proxy</span><span class="signal-val" id="d-bidask">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-bidask" style="background:var(--purple)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">High-low range ratio</span><span class="signal-val" id="d-hlrange">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-hlrange" style="background:var(--purple)"></div></div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-label"><span class="signal-name">Vol-adj volume</span><span class="signal-val" id="d-adjvol">—</span></div>
+          <div class="signal-track"><div class="signal-fill" id="b-adjvol" style="background:var(--purple)"></div></div>
+        </div>
+      </div>
+      <div class="pillar-footer">
+        <div class="pillar-state" id="p4-label" style="color:var(--purple)">—</div>
+        <div class="pillar-conf" id="p4-conf">—</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM GRID -->
+  <div class="bottom-grid">
+    <div class="implications-card">
+      <div class="impl-header">Portfolio implications</div>
+      <div class="impl-grid">
+        <div>
+          <div class="impl-col-title">Beta &amp; sizing</div>
+          <div id="impl-beta"></div>
+        </div>
+        <div>
+          <div class="impl-col-title">Strategy allocation</div>
+          <div id="impl-strategy"></div>
+        </div>
+        <div>
+          <div class="impl-col-title">Execution</div>
+          <div id="impl-exec"></div>
+        </div>
+      </div>
+    </div>
+    <div class="analogue-card">
+      <div class="analogue-header">Historical analogue</div>
+      <div class="analogue-text" id="analogue-text">—</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- INPUTS TAB -->
+<div class="tab-content" id="tab-inputs">
+<div class="model-layout">
+  <div class="sliders-panel">
+    <div class="sliders-grid">
+
+      <div>
+        <div class="slider-group-title" style="color:var(--blue)">P1 — Market structure</div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">ADX (14)</span><span class="slider-readout" id="r-adx">28</span></div>
+          <input type="range" min="0" max="60" value="28" step="1" id="adx" oninput="update()">
+          <div class="slider-bounds"><span>0 (MR)</span><span>60+ (trend)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Hurst exponent</span><span class="slider-readout" id="r-hurst">0.58</span></div>
+          <input type="range" min="20" max="80" value="58" step="1" id="hurst" oninput="update()">
+          <div class="slider-bounds"><span>0.2 (MR)</span><span>0.8 (trend)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Return autocorr</span><span class="slider-readout" id="r-autocorr">+0.12</span></div>
+          <input type="range" min="-40" max="40" value="12" step="1" id="autocorr" oninput="update()">
+          <div class="slider-bounds"><span>-0.4</span><span>+0.4</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Price vs MA200</span><span class="slider-readout" id="r-madisperse">+4%</span></div>
+          <input type="range" min="-25" max="25" value="4" step="1" id="madisperse" oninput="update()">
+          <div class="slider-bounds"><span>-25%</span><span>+25%</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">ATR slope (30d)</span><span class="slider-readout" id="r-atr">+0.08</span></div>
+          <input type="range" min="-25" max="25" value="8" step="1" id="atr" oninput="update()">
+          <div class="slider-bounds"><span>contracting</span><span>expanding</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Cross-asset consistency</span><span class="slider-readout" id="r-catc">3/4</span></div>
+          <input type="range" min="0" max="4" value="3" step="1" id="catc" oninput="update()">
+          <div class="slider-bounds"><span>0/4 assets</span><span>4/4</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-group-title" style="color:var(--green)">P2 — Risk appetite</div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">HY credit spread (bps)</span><span class="slider-readout" id="r-hycredit">310</span></div>
+          <input type="range" min="100" max="900" value="310" step="10" id="hycredit" oninput="update()">
+          <div class="slider-bounds"><span>100 (on)</span><span>900 (off)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">VIX term structure</span><span class="slider-readout" id="r-vixterm">+4</span></div>
+          <input type="range" min="-15" max="15" value="4" step="1" id="vixterm" oninput="update()">
+          <div class="slider-bounds"><span>backwardation</span><span>contango</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Copper/gold ratio</span><span class="slider-readout" id="r-copgold">0.21</span></div>
+          <input type="range" min="10" max="40" value="21" step="1" id="copgold" oninput="update()">
+          <div class="slider-bounds"><span>0.10 (off)</span><span>0.40 (on)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">SPY/TLT z-score</span><span class="slider-readout" id="r-spytlt">+0.4</span></div>
+          <input type="range" min="-30" max="30" value="4" step="1" id="spytlt" oninput="update()">
+          <div class="slider-bounds"><span>-3 (off)</span><span>+3 (on)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">DXY 20d ROC</span><span class="slider-readout" id="r-dxy">-0.8%</span></div>
+          <input type="range" min="-30" max="30" value="-8" step="1" id="dxy" oninput="update()">
+          <div class="slider-bounds"><span>DXY rising</span><span>DXY falling</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">STLFSI4 stress index</span><span class="slider-readout" id="r-ted">0.18</span></div>
+          <input type="range" min="-20" max="50" value="18" step="1" id="ted" oninput="update()">
+          <div class="slider-bounds"><span>-2 (calm)</span><span>+5 (stress)</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-group-title" style="color:var(--amber)">P3 — Volatility regime</div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">VIX level</span><span class="slider-readout" id="r-vix">18</span></div>
+          <input type="range" min="9" max="80" value="18" step="1" id="vix" oninput="update()">
+          <div class="slider-bounds"><span>9 (low)</span><span>80 (crisis)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Realized vs implied</span><span class="slider-readout" id="r-rviv">-2</span></div>
+          <input type="range" min="-20" max="20" value="-2" step="1" id="rviv" oninput="update()">
+          <div class="slider-bounds"><span>RV&lt;IV (calm)</span><span>RV&gt;IV (stress)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">VVIX level</span><span class="slider-readout" id="r-vvix">92</span></div>
+          <input type="range" min="60" max="180" value="92" step="1" id="vvix" oninput="update()">
+          <div class="slider-bounds"><span>60 (stable)</span><span>180 (panic)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">VVIX 5d acceleration</span><span class="slider-readout" id="r-vvixroc">+1.2</span></div>
+          <input type="range" min="-30" max="30" value="12" step="1" id="vvixroc" oninput="update()">
+          <div class="slider-bounds"><span>falling</span><span>rising (spike ahead)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Put/call skew (^SKEW)</span><span class="slider-readout" id="r-skew">8</span></div>
+          <input type="range" min="0" max="30" value="8" step="1" id="skew" oninput="update()">
+          <div class="slider-bounds"><span>0 (no fear)</span><span>30 (hedging)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">VIX9D − VIX3M slope</span><span class="slider-readout" id="r-vixslope">+3.2</span></div>
+          <input type="range" min="-20" max="20" value="32" step="1" id="vixslope" oninput="update()">
+          <div class="slider-bounds"><span>inverted (crisis)</span><span>steep (calm)</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-group-title" style="color:var(--purple)">P4 — Liquidity</div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Amihud illiquidity</span><span class="slider-readout" id="r-amihud">0.12</span></div>
+          <input type="range" min="0" max="100" value="12" step="1" id="amihud" oninput="update()">
+          <div class="slider-bounds"><span>0 (deep)</span><span>1.0 (illiquid)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">SOFR vs DFF (bps)</span><span class="slider-readout" id="r-sofr">6</span></div>
+          <input type="range" min="0" max="100" value="6" step="1" id="sofr" oninput="update()">
+          <div class="slider-bounds"><span>0 (liquid)</span><span>100 (stressed)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">SPY volume z-score</span><span class="slider-readout" id="r-spyvol">-0.4</span></div>
+          <input type="range" min="-30" max="30" value="-4" step="1" id="spyvol" oninput="update()">
+          <div class="slider-bounds"><span>-3 (thin)</span><span>+3 (heavy)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Bid-ask proxy</span><span class="slider-readout" id="r-bidask">0.03%</span></div>
+          <input type="range" min="1" max="50" value="3" step="1" id="bidask" oninput="update()">
+          <div class="slider-bounds"><span>0.01% (tight)</span><span>0.50%+</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">High-low range ratio</span><span class="slider-readout" id="r-hlrange">1.1</span></div>
+          <input type="range" min="80" max="300" value="110" step="1" id="hlrange" oninput="update()">
+          <div class="slider-bounds"><span>0.8 (normal)</span><span>3.0 (disloc.)</span></div>
+        </div>
+        <div class="slider-item">
+          <div class="slider-top"><span class="slider-name">Vol-adj rolling volume</span><span class="slider-readout" id="r-adjvol">+0.2</span></div>
+          <input type="range" min="-30" max="30" value="2" step="1" id="adjvol" oninput="update()">
+          <div class="slider-bounds"><span>falling</span><span>rising</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- NOTES TAB -->
+<div class="tab-content" id="tab-notes">
+<div class="notes-layout">
+
+  <div class="notes-section">
+    <div class="notes-h1">DL Partners — Regime Detection Engine v2.1</div>
+    <div class="notes-subtitle">Internal documentation for research team — April 2026</div>
+    <div class="notes-divider"></div>
+    <div class="notes-body">
+      This model uses a <strong>Weight of Evidence (WOE) framework</strong> across four orthogonal pillars: Market Structure, Risk Appetite, Volatility Regime, and Liquidity. Each pillar scores 0–100 continuously — there are no binary regime switches. The three pillars are <strong>genuinely independent</strong>: a market can be Trending + Risk-Off + High Vol simultaneously (2022). Treating them as mutually exclusive (as 6-state models do) discards real information. The composite state is the intersection of four pillar scores, not a single majority vote.
+    </div>
+    <div class="notes-body">
+      A <strong>3-day persistence filter</strong> (Hamilton 1989, Markov regime-switching) prevents whipsawing at boundaries. A pillar must hold a new state for three consecutive readings before the label flips. Raw scores and filtered scores are shown separately in the model view.
+    </div>
+  </div>
+
+  <div class="notes-section">
+    <div class="notes-h1">Pillar logic and field definitions</div>
+    <div class="notes-divider"></div>
+
+    <div class="pillar-note">
+      <div class="pillar-note-header">
+        <div class="pillar-dot" style="background:var(--blue)"></div>
+        <div class="pillar-note-title">Pillar 1 — Market structure</div>
+        <div class="pillar-note-sub">Is price action trending or mean-reverting?</div>
+      </div>
+      <table class="field-table">
+        <thead><tr><th>Field</th><th>Logic &amp; interpretation</th><th>Source</th><th>Wt</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="field-name">ADX (14)</td>
+            <td class="field-logic">Average Directional Index. Values above 25 indicate a trending market regardless of direction. Values below 20 indicate mean-reverting / choppy conditions. The most widely used trend-strength indicator. Computed from daily OHLCV via TA-Lib.</td>
+            <td class="field-source">yfinance SPY<br>→ ta.ADX(14)</td>
+            <td class="field-weight">28%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Hurst exponent</td>
+            <td class="field-logic">H &gt; 0.5 = persistent (trending), H = 0.5 = random walk, H &lt; 0.5 = mean-reverting. Based on Mandelbrot (1972) and Lo (1991) long-memory research. Use a rolling 252-day window. Validated by Jegadeesh & Titman (1993) momentum literature.</td>
+            <td class="field-source">yfinance SPY<br>pip install hurst</td>
+            <td class="field-weight">22%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Return autocorrelation</td>
+            <td class="field-logic">Lag-1 autocorrelation of daily log returns over rolling 63-day window. Positive = momentum (trend), negative = mean-reversion. Use pandas .autocorr(lag=1). Range [-0.4, +0.4] in practice.</td>
+            <td class="field-source">yfinance SPY<br>returns.autocorr(1)</td>
+            <td class="field-weight">18%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Price vs MA200</td>
+            <td class="field-logic">Percentage deviation of current close from 200-day simple moving average. Positive = above MA200 (bullish structure), negative = below (bearish structure). A key signal used by trend-following CTAs for position bias.</td>
+            <td class="field-source">yfinance SPY<br>close.rolling(200).mean()</td>
+            <td class="field-weight">14%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">ATR slope (30d)</td>
+            <td class="field-logic">30-day linear slope of Average True Range (14). Expanding ATR confirms a trend is developing with increasing momentum. Contracting ATR signals range compression. From Kaufman (1995) adaptive moving average research.</td>
+            <td class="field-source">yfinance OHLCV<br>→ ta.ATR(14) slope</td>
+            <td class="field-weight">10%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Cross-asset consistency</td>
+            <td class="field-logic">Count of SPY, TLT, GLD, DX-Y.NYB that are trending in their historically expected direction (above MA200 for risk assets, below for safe havens). 4/4 = strong coordinated trend environment. Added per Leinweber panel recommendation.</td>
+            <td class="field-source">yfinance: SPY, TLT,<br>GLD, DX-Y.NYB</td>
+            <td class="field-weight">8%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pillar-note">
+      <div class="pillar-note-header">
+        <div class="pillar-dot" style="background:var(--green)"></div>
+        <div class="pillar-note-title">Pillar 2 — Risk appetite</div>
+        <div class="pillar-note-sub">Is capital flowing toward or away from risk?</div>
+      </div>
+      <table class="field-table">
+        <thead><tr><th>Field</th><th>Logic &amp; interpretation</th><th>Source</th><th>Wt</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="field-name">HY credit spread</td>
+            <td class="field-logic">ICE BofA US High Yield OAS in basis points. The single most reliable leading indicator of equity stress (Gilchrist & Zakrajsek 2012). Below 300bps = risk-on. Above 500bps = risk-off. Above 700bps = crisis territory. Updated daily on FRED with no lag.</td>
+            <td class="field-source">FRED: BAMLH0A0HYM2<br>Daily, free API</td>
+            <td class="field-weight">28%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">VIX term structure</td>
+            <td class="field-logic">^VIX9D minus ^VIX3M. Contango (positive, short-dated VIX lower than long-dated) = risk-on, calm. Backwardation (negative) = risk-off, hedging demand elevated. Used by AQR as their primary risk-on/off switch. More reliable than VIX level alone.</td>
+            <td class="field-source">yfinance: ^VIX9D<br>minus ^VIX3M</td>
+            <td class="field-weight">20%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Copper / gold ratio</td>
+            <td class="field-logic">CPER price / GLD price. Copper = industrial demand / growth proxy. Gold = safe haven. Rising ratio = risk-on (growth being priced). Falling ratio = risk-off. Source: Erb & Harvey (2006), used explicitly by Goldman Sachs macro strategy.</td>
+            <td class="field-source">yfinance: CPER / GLD<br>Both confirmed live</td>
+            <td class="field-weight">18%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">SPY / TLT z-score</td>
+            <td class="field-logic">Ratio of SPY to TLT prices, z-scored over a trailing 252-day window. Positive z-score = equities outperforming bonds = risk-on. Negative = flight to safety. Clean cross-asset confirmation of the HY spread signal.</td>
+            <td class="field-source">yfinance: SPY, TLT<br>z-scored 252d rolling</td>
+            <td class="field-weight">14%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">DXY 20d ROC</td>
+            <td class="field-logic">20-day rate of change of the US Dollar Index. Rising DXY = dollar strengthening = risk-off (EM capital outflows, tighter global financial conditions). Falling DXY = risk-on. Replaces the EM flow signal which requires Bloomberg for true measurement.</td>
+            <td class="field-source">yfinance: DX-Y.NYB<br>pct_change(20)</td>
+            <td class="field-weight">12%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">STLFSI4 stress index</td>
+            <td class="field-logic">St. Louis Fed Financial Stress Index v4. Replaces discontinued TEDRATE (LIBOR was killed Jan 2022). Constructed from 18 series: 7 interest rates, 6 yield spreads, 5 other indicators. Zero = normal. Positive = above-average stress. Weekly frequency — use most recent reading.</td>
+            <td class="field-source">FRED: STLFSI4<br>Weekly, free API</td>
+            <td class="field-weight">8%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pillar-note">
+      <div class="pillar-note-header">
+        <div class="pillar-dot" style="background:var(--amber)"></div>
+        <div class="pillar-note-title">Pillar 3 — Volatility regime</div>
+        <div class="pillar-note-sub">How much uncertainty is being priced?</div>
+      </div>
+      <table class="field-table">
+        <thead><tr><th>Field</th><th>Logic &amp; interpretation</th><th>Source</th><th>Wt</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="field-name">VIX level</td>
+            <td class="field-logic">CBOE 30-day implied volatility of S&P 500 options. Below 15 = low vol. 15–25 = normal. 25–35 = elevated. Above 35 = high vol. Above 45 = crisis. Full history to 1990 available. Highest single-signal weight in this pillar.</td>
+            <td class="field-source">yfinance: ^VIX<br>Full history, live</td>
+            <td class="field-weight">30%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Realized vs implied vol</td>
+            <td class="field-logic">21-day realized vol (annualised from SPY daily returns) minus VIX. When RV &gt; IV (positive spread), actual volatility is exceeding what was priced — stress is occurring in real time. Carr & Wu (2009) identify this as the key regime discriminator.</td>
+            <td class="field-source">yfinance SPY returns<br>→ RV − ^VIX</td>
+            <td class="field-weight">18%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">VVIX level</td>
+            <td class="field-logic">CBOE Vol-of-Vol Index — implied volatility of VIX options. Measures uncertainty about future volatility itself. Above 100 = elevated. Above 130 = high concern. Above 150 = panic. Spikes in VVIX often precede VIX spikes by 1–2 days.</td>
+            <td class="field-source">yfinance: ^VVIX<br>Confirmed live</td>
+            <td class="field-weight">17%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">VVIX 5d acceleration</td>
+            <td class="field-logic">5-day percentage rate of change of VVIX. <strong>This is the leading indicator</strong> — it fires 1–2 days before the vol spike arrives. Added per Kolanovic panel recommendation. Computed from ^VVIX using pct_change(5). No additional data source needed.</td>
+            <td class="field-source">Derived from ^VVIX<br>pct_change(5)</td>
+            <td class="field-weight">17%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Put / call skew (^SKEW)</td>
+            <td class="field-logic">CBOE SKEW Index measures tail risk / the implied probability of a black swan event in S&P 500 options pricing. Normal range 100–130. Above 140 = elevated hedging. This measures portfolio manager behaviour — they pay more for puts when scared.</td>
+            <td class="field-source">yfinance: ^SKEW<br>Or CBOE free CSV</td>
+            <td class="field-weight">10%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">VIX9D − VIX3M slope</td>
+            <td class="field-logic">Free proxy for VIX futures term structure (actual M1-M4 futures require paid data). ^VIX9D (9-day) minus ^VIX3M (3-month). When short-dated VIX is lower than long-dated (positive = normal contango), market is calm. Inversion = crisis.</td>
+            <td class="field-source">yfinance: ^VIX9D<br>minus ^VIX3M</td>
+            <td class="field-weight">8%</td>
+            <td><span class="status-pill sp-warn">Proxy</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pillar-note">
+      <div class="pillar-note-header">
+        <div class="pillar-dot" style="background:var(--purple)"></div>
+        <div class="pillar-note-title">Pillar 4 — Liquidity</div>
+        <div class="pillar-note-sub">Can the portfolio execute? Added per Kaminski panel recommendation.</div>
+      </div>
+      <table class="field-table">
+        <thead><tr><th>Field</th><th>Logic &amp; interpretation</th><th>Source</th><th>Wt</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="field-name">Amihud illiquidity ratio</td>
+            <td class="field-logic">|Return| / Dollar Volume, from Amihud (2002). Higher = more price impact per dollar traded = less liquid. Computed daily from SPY OHLCV. z-score over trailing 252 days. Rising z-score signals deteriorating market depth even before bid-ask spreads widen.</td>
+            <td class="field-source">Derived from yfinance<br>abs(ret)/volume</td>
+            <td class="field-weight">28%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">SOFR vs DFF spread</td>
+            <td class="field-logic">Secured Overnight Financing Rate minus Fed Funds Effective Rate in basis points. Widening spread signals repo market stress — funding costs rising for leveraged players. The modern replacement for TED spread (TEDRATE discontinued Jan 2022 when LIBOR died).</td>
+            <td class="field-source">FRED: SOFR − DFF<br>Both daily, live</td>
+            <td class="field-weight">22%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">SPY volume z-score</td>
+            <td class="field-logic">Daily SPY share volume z-scored against trailing 63-day mean and standard deviation. Abnormally low volume = thin market, poor depth. Abnormally high volume in a down market = panic / forced selling. Context-dependent — check with price direction.</td>
+            <td class="field-source">yfinance: SPY volume<br>z-score 63d rolling</td>
+            <td class="field-weight">18%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Bid-ask spread proxy</td>
+            <td class="field-logic">Corwin-Schultz (2012) estimator: (High − Low) / Close as a free daily proxy for true bid-ask spread. True intraday bid-ask requires paid tick data. This estimator is validated in academic liquidity literature and widely used as a free substitute.</td>
+            <td class="field-source">Derived from yfinance<br>(H-L)/C OHLCV</td>
+            <td class="field-weight">15%</td>
+            <td><span class="status-pill sp-warn">Proxy</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">High-low range ratio</td>
+            <td class="field-logic">Daily (High − Low) / Close divided by its 63-day rolling mean. Values above 1.5x signal unusual intraday dislocation — prices are moving more than normal relative to their close. A simple but effective flag for microstructure breakdown during stress events.</td>
+            <td class="field-source">yfinance: SPY OHLCV<br>(H-L)/C vs 63d mean</td>
+            <td class="field-weight">10%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+          <tr>
+            <td class="field-name">Vol-adj rolling volume</td>
+            <td class="field-logic">5-day rate of change of (daily volume / ATR14) — adjusts volume for volatility to isolate liquidity signals from vol signals. Falling vol-adjusted volume while vol is rising = genuine liquidity withdrawal, not just panic. The composite execution environment signal.</td>
+            <td class="field-source">Derived: volume<br>/ ATR(14), pct_change(5)</td>
+            <td class="field-weight">7%</td>
+            <td><span class="status-pill sp-ok">Live</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="notes-section">
+    <div class="notes-h1">Scoring formula</div>
+    <div class="notes-divider"></div>
+    <div class="logic-box">
+      <span class="comment"># Each signal is min-max normalized to [0,1] within its historical range</span><br>
+      <span class="keyword">def</span> <span class="func">norm</span>(value, lo, hi): <span class="keyword">return</span> clamp((value - lo) / (hi - lo), <span class="val">0</span>, <span class="val">1</span>)<br><br>
+      <span class="comment"># Pillar score = weighted sum of normalized sub-signals (weights sum to 1.0)</span><br>
+      pillar_score = Σ (weight_i × norm_i) × <span class="val">100</span>  <span class="comment"># outputs 0–100</span><br><br>
+      <span class="comment"># Persistence filter: hold previous state unless new state holds for 3 days</span><br>
+      <span class="keyword">if</span> all(hist[-<span class="val">3</span>:] in same_state): confirmed_state = current_state<br>
+      <span class="keyword">else</span>: confirmed_state = prev_confirmed_state<br><br>
+      <span class="comment"># Portfolio sizing: vol and liquidity penalties applied multiplicatively</span><br>
+      liq_penalty = max(<span class="val">0</span>, P4_score - <span class="val">40</span>) × <span class="val">1.5</span><br>
+      vol_penalty = max(<span class="val">0</span>, P3_score - <span class="val">50</span>) × <span class="val">1.2</span><br>
+      size_scale = clamp(<span class="val">1.0</span> - (liq_penalty + vol_penalty) / <span class="val">100</span>, <span class="val">0.15</span>, <span class="val">1.0</span>)
+    </div>
+  </div>
+
+  <div class="notes-section">
+    <div class="notes-h1">Academic references</div>
+    <div class="notes-divider"></div>
+    <div class="notes-body">
+      <strong>Mandelbrot (1972)</strong> — Long memory in financial returns, foundation for Hurst exponent use.<br>
+      <strong>Lo (1991)</strong> — Long-term memory in stock market prices, modified R/S statistic.<br>
+      <strong>Jegadeesh & Titman (1993)</strong> — Returns to buying winners and selling losers, momentum evidence.<br>
+      <strong>Kaufman (1995)</strong> — Smarter Trading: ATR and adaptive moving averages.<br>
+      <strong>Hamilton (1989)</strong> — A new approach to the economic analysis of non-stationary time series (Markov regime switching).<br>
+      <strong>Erb & Harvey (2006)</strong> — The strategic and tactical value of commodity futures, copper/gold ratio.<br>
+      <strong>Amihud (2002)</strong> — Illiquidity and stock returns: cross-section and time-series effects.<br>
+      <strong>Carr & Wu (2009)</strong> — Variance risk premiums, realized vs implied vol spread.<br>
+      <strong>Gilchrist & Zakrajsek (2012)</strong> — Credit spreads and business cycle fluctuations.<br>
+      <strong>Corwin & Schultz (2012)</strong> — A simple way to estimate bid-ask spreads from daily high and low prices.<br>
+      <strong>Kaminski (2014)</strong> — Trend Following with Managed Futures, AlphaSimplex.
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- DATA SOURCES TAB -->
+<div class="tab-content" id="tab-data">
+<div class="data-layout">
+
+  <div class="data-section">
+    <div class="data-h1">Verified data sources — April 2026 audit</div>
+
+    <div class="source-card">
+      <div class="source-header">
+        <div class="source-icon">YF</div>
+        <div>
+          <div class="source-name">yfinance (Python library)</div>
+          <div class="source-desc">Free Yahoo Finance wrapper. No API key required. Covers equities, ETFs, indices, futures, FX.</div>
+        </div>
+        <a class="source-link" href="https://pypi.org/project/yfinance/" target="_blank">pypi.org/project/yfinance ↗</a>
+      </div>
+      <div class="ticker-grid">
+        <div class="ticker-chip live">SPY — S&P 500 ETF</div>
+        <div class="ticker-chip live">TLT — 20yr Treasury</div>
+        <div class="ticker-chip live">GLD — Gold ETF</div>
+        <div class="ticker-chip live">CPER — Copper ETF</div>
+        <div class="ticker-chip live">EEM — EM ETF</div>
+        <div class="ticker-chip live">DX-Y.NYB — DXY Index</div>
+        <div class="ticker-chip live">^VIX — CBOE VIX</div>
+        <div class="ticker-chip live">^VVIX — CBOE VVIX</div>
+        <div class="ticker-chip live">^SKEW — CBOE SKEW</div>
+        <div class="ticker-chip live">^VIX9D — 9-day VIX</div>
+        <div class="ticker-chip live">^VIX3M — 3-month VIX</div>
+        <div class="ticker-chip live">HYG — HY Bond ETF</div>
+        <div class="ticker-chip dead">TEDRATE — DEAD (2022)</div>
+      </div>
+      <div class="install-block">
+        <span class="comment"># Install</span><br>
+        pip install yfinance pandas ta-lib hurst<br><br>
+        <span class="comment"># Basic fetch</span><br>
+        import yfinance as yf<br>
+        spy = yf.download("SPY", period="2y", interval="1d")<br>
+        vix = yf.download("^VIX ^VVIX ^SKEW ^VIX9D ^VIX3M", period="2y")
+      </div>
+    </div>
+
+    <div class="source-card">
+      <div class="source-header">
+        <div class="source-icon">FR</div>
+        <div>
+          <div class="source-name">FRED API — Federal Reserve Economic Data</div>
+          <div class="source-desc">Free API key from stlouisfed.org. 800,000+ economic series. Daily updates for most financial series.</div>
+        </div>
+        <a class="source-link" href="https://fred.stlouisfed.org/docs/api/fred/" target="_blank">fred.stlouisfed.org/api ↗</a>
+      </div>
+      <div class="ticker-grid">
+        <div class="ticker-chip live">BAMLH0A0HYM2 — HY OAS spread</div>
+        <div class="ticker-chip live">SOFR — Secured overnight rate</div>
+        <div class="ticker-chip live">DFF — Fed Funds effective rate</div>
+        <div class="ticker-chip live">STLFSI4 — Financial stress index</div>
+        <div class="ticker-chip live">DTB3 — 3-month T-bill rate</div>
+        <div class="ticker-chip live">T10Y2Y — Yield curve spread</div>
+        <div class="ticker-chip dead">TEDRATE — DISCONTINUED Jan 2022</div>
+      </div>
+      <div class="install-block">
+        <span class="comment"># Install</span><br>
+        pip install fredapi<br><br>
+        <span class="comment"># Fetch HY spread and STLFSI4</span><br>
+        from fredapi import Fred<br>
+        fred = Fred(api_key='YOUR_KEY')  <span class="comment"># free at stlouisfed.org/docs/api/fred/</span><br>
+        hy_spread = fred.get_series('BAMLH0A0HYM2')<br>
+        stress = fred.get_series('STLFSI4')<br>
+        sofr = fred.get_series('SOFR')<br>
+        dff = fred.get_series('DFF')<br>
+        sofr_spread = sofr - dff
+      </div>
+    </div>
+
+    <div class="source-card">
+      <div class="source-header">
+        <div class="source-icon">CB</div>
+        <div>
+          <div class="source-name">CBOE — Chicago Board Options Exchange</div>
+          <div class="source-desc">Free daily CSV downloads for all CBOE indices. No API key needed. Direct download links.</div>
+        </div>
+        <a class="source-link" href="https://www.cboe.com/us/indices/" target="_blank">cboe.com/us/indices ↗</a>
+      </div>
+      <div class="ticker-grid">
+        <div class="ticker-chip live">VIX — Full history to 1990</div>
+        <div class="ticker-chip live">VVIX — Vol of vol index</div>
+        <div class="ticker-chip live">SKEW — Tail risk index</div>
+        <div class="ticker-chip live">VIX9D — 9-day VIX</div>
+        <div class="ticker-chip live">VIX3M — 3-month VIX</div>
+      </div>
+      <div class="install-block">
+        <span class="comment"># Direct CSV downloads (no auth required)</span><br>
+        VIX:  https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv<br>
+        VVIX: https://cdn.cboe.com/api/global/us_indices/daily_prices/VVIX_History.csv<br>
+        SKEW: https://cdn.cboe.com/api/global/us_indices/daily_prices/SKEW_History.csv<br><br>
+        <span class="comment"># Or via yfinance (same data, easier)</span><br>
+        vvix = yf.download("^VVIX", period="5y")['Close']<br>
+        vvix_accel = vvix.pct_change(5)  <span class="comment"># 5-day acceleration signal</span>
+      </div>
+    </div>
+
+    <div class="source-card">
+      <div class="source-header">
+        <div class="source-icon">PY</div>
+        <div>
+          <div class="source-name">Derived signals — computed from OHLCV, no extra source</div>
+          <div class="source-desc">These signals require no additional data subscription. Computed from yfinance SPY daily OHLCV.</div>
+        </div>
+      </div>
+      <div class="ticker-grid">
+        <div class="ticker-chip live">Hurst exponent — pip install hurst</div>
+        <div class="ticker-chip live">Amihud ratio — abs(ret)/volume</div>
+        <div class="ticker-chip live">Return autocorr — returns.autocorr(1)</div>
+        <div class="ticker-chip live">Bid-ask proxy — (H-L)/C</div>
+        <div class="ticker-chip live">VVIX acceleration — pct_change(5)</div>
+        <div class="ticker-chip live">ATR slope — ta.ATR(14) linear fit</div>
+        <div class="ticker-chip live">Vol-adj volume — vol/ATR(14)</div>
+        <div class="ticker-chip live">SPY vol z-score — volume zscore 63d</div>
+      </div>
+      <div class="install-block">
+        <span class="comment"># Full derived signal computation</span><br>
+        import pandas as pd, numpy as np<br>
+        from hurst import compute_Hc<br>
+        import ta<br><br>
+        spy = yf.download("SPY", period="3y")<br>
+        ret = spy['Close'].pct_change()<br><br>
+        H, c, data = compute_Hc(spy['Close'].dropna(), kind='price', simplified=True)<br>
+        autocorr = ret.rolling(63).apply(<span class="keyword">lambda</span> x: x.autocorr())<br>
+        amihud = (ret.abs() / spy['Volume']).rolling(21).mean()<br>
+        bid_ask_proxy = (spy['High'] - spy['Low']) / spy['Close']<br>
+        vol_z = (spy['Volume'] - spy['Volume'].rolling(63).mean()) / spy['Volume'].rolling(63).std()
+      </div>
+    </div>
+
+    <div class="source-card" style="border-color:var(--red);background:var(--red-dim)">
+      <div class="source-header">
+        <div class="source-icon" style="border-color:var(--red);color:var(--red)">!</div>
+        <div>
+          <div class="source-name" style="color:var(--red)">DEAD TICKER — Do not use</div>
+          <div class="source-desc" style="color:#a06060">TEDRATE was removed from FRED on January 28 2022 when 3-Month LIBOR was discontinued. Any backtest or live script using TEDRATE will return no data after Jan 2022.</div>
+        </div>
+      </div>
+      <div class="ticker-grid">
+        <div class="ticker-chip dead">TEDRATE — Discontinued Jan 28 2022</div>
+        <div class="ticker-chip live">STLFSI4 — Use this instead (FRED, weekly, live)</div>
+        <div class="ticker-chip live">SOFR − DFF — For daily funding stress</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="data-section">
+    <div class="data-h1">Execution checklist for team</div>
+    <div class="source-card">
+      <table class="field-table">
+        <thead><tr><th>#</th><th>Step</th><th>Action required</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="field-name">1</td><td class="field-logic">Get FRED API key</td><td class="field-logic">Register free at <a href="https://fred.stlouisfed.org/docs/api/fred/" style="color:var(--blue)">stlouisfed.org/docs/api/fred</a>. Takes 2 minutes. Store key in .env file.</td><td><span class="status-pill sp-warn">Required</span></td></tr>
+          <tr><td class="field-name">2</td><td class="field-logic">Install Python packages</td><td class="field-logic">pip install yfinance fredapi pandas ta-lib hurst numpy scipy</td><td><span class="status-pill sp-warn">Required</span></td></tr>
+          <tr><td class="field-name">3</td><td class="field-logic">Verify yfinance tickers</td><td class="field-logic">Run: yf.download("^VIX ^VVIX ^SKEW ^VIX9D ^VIX3M CPER GLD DX-Y.NYB", period="5d") — all should return data.</td><td><span class="status-pill sp-ok">21/24 confirmed</span></td></tr>
+          <tr><td class="field-name">4</td><td class="field-logic">Remove TEDRATE</td><td class="field-logic">Replace any TEDRATE reference with STLFSI4 from FRED. TEDRATE returns no data after Jan 2022.</td><td><span class="status-pill sp-dead">Fix required</span></td></tr>
+          <tr><td class="field-name">5</td><td class="field-logic">VIX term slope proxy</td><td class="field-logic">Use ^VIX9D − ^VIX3M from yfinance as free proxy for VIX futures M1-M4 slope. Adequate approximation.</td><td><span class="status-pill sp-warn">Proxy used</span></td></tr>
+          <tr><td class="field-name">6</td><td class="field-logic">Set lookback windows</td><td class="field-logic">Hurst: 252d. Autocorr: 63d. Amihud z-score: 252d. Volume z-score: 63d. ATR slope: 30d. Warm-up period: 252 trading days.</td><td><span class="status-pill sp-ok">Defined</span></td></tr>
+          <tr><td class="field-name">7</td><td class="field-logic">STLFSI4 frequency mismatch</td><td class="field-logic">STLFSI4 is weekly. Forward-fill to daily before merging with daily dataframe. Use .ffill() in pandas.</td><td><span class="status-pill sp-warn">Handle in code</span></td></tr>
+          <tr><td class="field-name">8</td><td class="field-logic">Run walk-forward backtest</td><td class="field-logic">Test on 2008, 2011, 2015, 2018, 2020, 2022 events. Verify regime labels match known historical environments before going live.</td><td><span class="status-pill sp-warn">Pending</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toUTCString().slice(0, 25) + ' UTC';
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+const history = { p1: [], p2: [], p3: [], p4: [] };
+const CONF = 3;
+
+function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+function norm(v, lo, hi) { return clamp((v - lo) / (hi - lo), 0, 1); }
+
+function pf(pillar, raw) {
+  const h = history[pillar];
+  h.push(raw);
+  if (h.length > CONF) h.shift();
+  if (h.length < CONF) return raw;
+  const allSame = h.every(v => (v > 0.5) === (h[h.length - 1] > 0.5));
+  if (allSame) return h[h.length - 1];
+  const maxChange = Math.max(...h.map((v, i) => i === 0 ? 0 : Math.abs(v - h[i - 1])));
+  if (maxChange < 0.08) return h[0];
+  return h[h.length - 1];
+}
+
+function confLabel(pillar) {
+  const h = history[pillar];
+  if (!h || h.length < CONF) return 'building (' + (h ? h.length : 0) + '/' + CONF + 'd)';
+  const allSame = h.every(v => (v > 0.5) === (h[h.length - 1] > 0.5));
+  return allSame ? 'confirmed · 3d' : 'pending transition';
+}
+
+function setBar(id, pct, color) {
+  const el = document.getElementById(id);
+  if (el) { el.style.width = Math.round(pct) + '%'; if (color) el.style.background = color; }
+}
+
+function setSignal(key, displayVal, rawScore, color) {
+  const dEl = document.getElementById('d-' + key);
+  const bEl = document.getElementById('b-' + key);
+  if (dEl) dEl.textContent = displayVal;
+  if (bEl) { bEl.style.width = Math.round(rawScore * 100) + '%'; }
+}
+
+function P1() {
+  const adx = +document.getElementById('adx').value;
+  const hurst = +document.getElementById('hurst').value / 100;
+  const ac = +document.getElementById('autocorr').value / 100;
+  const mad = +document.getElementById('madisperse').value / 100;
+  const atr = +document.getElementById('atr').value / 100;
+  const catc = +document.getElementById('catc').value / 4;
+
+  document.getElementById('r-adx').textContent = Math.round(adx);
+  document.getElementById('r-hurst').textContent = hurst.toFixed(2);
+  document.getElementById('r-autocorr').textContent = (ac >= 0 ? '+' : '') + ac.toFixed(2);
+  document.getElementById('r-madisperse').textContent = (mad >= 0 ? '+' : '') + Math.round(mad * 100) + '%';
+  document.getElementById('r-atr').textContent = (atr >= 0 ? '+' : '') + atr.toFixed(2);
+  document.getElementById('r-catc').textContent = Math.round(catc * 4) + '/4';
+
+  const s1 = norm(adx, 10, 50), s2 = norm(hurst, 0.30, 0.80), s3 = norm(ac, -0.35, 0.35);
+  const s4 = norm(mad, -0.22, 0.22), s5 = norm(atr, -0.22, 0.22), s6 = catc;
+  const raw = s1*0.28+s2*0.22+s3*0.18+s4*0.14+s5*0.10+s6*0.08;
+
+  setSignal('adx', Math.round(adx), s1);
+  setSignal('hurst', hurst.toFixed(2), s2);
+  setSignal('autocorr', (ac>=0?'+':'')+ac.toFixed(2), s3);
+  setSignal('madisperse', (mad>=0?'+':'')+Math.round(mad*100)+'%', s4);
+  setSignal('atr', (atr>=0?'+':'')+atr.toFixed(2), s5);
+  setSignal('catc', Math.round(catc*4)+'/4', s6);
+  return raw;
+}
+
+function P2() {
+  const hy = +document.getElementById('hycredit').value;
+  const vt = +document.getElementById('vixterm').value;
+  const cg = +document.getElementById('copgold').value / 100;
+  const st = +document.getElementById('spytlt').value / 10;
+  const dx = +document.getElementById('dxy').value / 10;
+  const ted = +document.getElementById('ted').value / 10;
+
+  document.getElementById('r-hycredit').textContent = Math.round(hy);
+  document.getElementById('r-vixterm').textContent = (vt >= 0 ? '+' : '') + Math.round(vt);
+  document.getElementById('r-copgold').textContent = cg.toFixed(2);
+  document.getElementById('r-spytlt').textContent = (st >= 0 ? '+' : '') + st.toFixed(1);
+  document.getElementById('r-dxy').textContent = (dx >= 0 ? '+' : '') + dx.toFixed(1) + '%';
+  document.getElementById('r-ted').textContent = ted.toFixed(2);
+
+  const s1=1-norm(hy,100,800), s2=norm(vt,-12,12), s3=norm(cg,0.10,0.38);
+  const s4=norm(st,-3,3), s5=norm(dx,-3,3), s6=1-norm(ted,-2,5);
+  const raw = s1*0.28+s2*0.20+s3*0.18+s4*0.14+s5*0.12+s6*0.08;
+
+  setSignal('hycredit', Math.round(hy)+'bps', s1);
+  setSignal('vixterm', (vt>=0?'+':'')+Math.round(vt), s2);
+  setSignal('copgold', cg.toFixed(2), s3);
+  setSignal('spytlt', (st>=0?'+':'')+st.toFixed(1), s4);
+  setSignal('dxy', (dx>=0?'+':'')+dx.toFixed(1)+'%', s5);
+  setSignal('ted', ted.toFixed(2), s6);
+  return raw;
+}
+
+function P3() {
+  const vix = +document.getElementById('vix').value;
+  const rv = +document.getElementById('rviv').value;
+  const vv = +document.getElementById('vvix').value;
+  const vr = +document.getElementById('vvixroc').value / 10;
+  const sk = +document.getElementById('skew').value;
+  const vs = +document.getElementById('vixslope').value / 10;
+
+  document.getElementById('r-vix').textContent = Math.round(vix);
+  document.getElementById('r-rviv').textContent = (rv >= 0 ? '+' : '') + Math.round(rv);
+  document.getElementById('r-vvix').textContent = Math.round(vv);
+  document.getElementById('r-vvixroc').textContent = (vr >= 0 ? '+' : '') + vr.toFixed(1);
+  document.getElementById('r-skew').textContent = Math.round(sk);
+  document.getElementById('r-vixslope').textContent = (vs >= 0 ? '+' : '') + vs.toFixed(1);
+
+  const s1=norm(vix,10,65), s2=norm(rv,-15,15), s3=norm(vv,65,155);
+  const s4=norm(vr,-3,3), s5=norm(sk,0,25), s6=1-norm(vs,-15,15);
+  const raw = s1*0.30+s2*0.18+s3*0.17+s4*0.17+s5*0.10+s6*0.08;
+
+  setSignal('vix', Math.round(vix), s1);
+  setSignal('rviv', (rv>=0?'+':'')+Math.round(rv), s2);
+  setSignal('vvix', Math.round(vv), s3);
+  setSignal('vvixroc', (vr>=0?'+':'')+vr.toFixed(1), s4);
+  setSignal('skew', Math.round(sk), s5);
+  setSignal('vixslope', (vs>=0?'+':'')+vs.toFixed(1), s6);
+  return raw;
+}
+
+function P4() {
+  const am = +document.getElementById('amihud').value / 100;
+  const sf = +document.getElementById('sofr').value;
+  const sv = +document.getElementById('spyvol').value / 10;
+  const ba = +document.getElementById('bidask').value / 100;
+  const hl = +document.getElementById('hlrange').value / 100;
+  const av = +document.getElementById('adjvol').value / 10;
+
+  document.getElementById('r-amihud').textContent = am.toFixed(2);
+  document.getElementById('r-sofr').textContent = Math.round(sf) + 'bps';
+  document.getElementById('r-spyvol').textContent = (sv >= 0 ? '+' : '') + sv.toFixed(1);
+  document.getElementById('r-bidask').textContent = (ba * 100).toFixed(2) + '%';
+  document.getElementById('r-hlrange').textContent = hl.toFixed(2);
+  document.getElementById('r-adjvol').textContent = (av >= 0 ? '+' : '') + av.toFixed(1);
+
+  const s1=norm(am,0,0.9), s2=norm(sf,3,80), s3=1-norm(sv,-3,3);
+  const s4=norm(ba,0.0001,0.004), s5=norm(hl,0.8,2.5), s6=1-norm(av,-3,3);
+  const raw = s1*0.28+s2*0.22+s3*0.18+s4*0.15+s5*0.10+s6*0.07;
+
+  setSignal('amihud', am.toFixed(2), s1);
+  setSignal('sofr', Math.round(sf)+'bps', s2);
+  setSignal('spyvol', (sv>=0?'+':'')+sv.toFixed(1), s3);
+  setSignal('bidask', (ba*100).toFixed(2)+'%', s4);
+  setSignal('hlrange', hl.toFixed(2), s5);
+  setSignal('adjvol', (av>=0?'+':'')+av.toFixed(1), s6);
+  return raw;
+}
+
+function sL(s) {
+  if (s > 0.72) return { l: 'Strongly trending', c: '#4a9eff' };
+  if (s > 0.57) return { l: 'Mildly trending', c: '#7ab8ff' };
+  if (s > 0.43) return { l: 'Transitional', c: '#7090a8' };
+  if (s > 0.28) return { l: 'Mildly mean-rev.', c: '#f5a623' };
+  return { l: 'Mean-reverting', c: '#e87010' };
+}
+function aL(s) {
+  if (s > 0.72) return { l: 'Strong risk-on', c: '#3dd68c' };
+  if (s > 0.57) return { l: 'Mild risk-on', c: '#6de8a8' };
+  if (s > 0.43) return { l: 'Neutral', c: '#7090a8' };
+  if (s > 0.28) return { l: 'Mild risk-off', c: '#f5a623' };
+  return { l: 'Strong risk-off', c: '#ff5f5f' };
+}
+function vL(s) {
+  if (s > 0.80) return { l: 'Crisis vol', c: '#ff5f5f' };
+  if (s > 0.60) return { l: 'High vol', c: '#f5a623' };
+  if (s > 0.38) return { l: 'Normal vol', c: '#7090a8' };
+  return { l: 'Low vol', c: '#3dd68c' };
+}
+function lL(s) {
+  if (s > 0.75) return { l: 'Illiquid / seized', c: '#ff5f5f' };
+  if (s > 0.55) return { l: 'Thin / stressed', c: '#f5a623' };
+  if (s > 0.35) return { l: 'Normal depth', c: '#7090a8' };
+  return { l: 'Deep & liquid', c: '#3dd68c' };
+}
+
+function implRow(k, v) {
+  return `<div class="impl-row"><span class="impl-key">${k}</span><span class="impl-val">${v}</span></div>`;
+}
+
+function update() {
+  const r1 = P1(), r2 = P2(), r3 = P3(), r4 = P4();
+  const f1 = pf('p1', r1), f2 = pf('p2', r2), f3 = pf('p3', r3), f4 = pf('p4', r4);
+
+  const sl = sL(f1), al = aL(f2), vl = vL(f3), ll = lL(f4);
+
+  document.getElementById('p1-score').textContent = Math.round(f1 * 100);
+  setBar('p1-bar', f1 * 100);
+  document.getElementById('p1-label').textContent = sl.l;
+  document.getElementById('p1-label').style.color = sl.c;
+  document.getElementById('p1-conf').textContent = confLabel('p1');
+
+  document.getElementById('p2-score').textContent = Math.round(f2 * 100);
+  setBar('p2-bar', f2 * 100);
+  document.getElementById('p2-label').textContent = al.l;
+  document.getElementById('p2-label').style.color = al.c;
+  document.getElementById('p2-conf').textContent = confLabel('p2');
+
+  document.getElementById('p3-score').textContent = Math.round(f3 * 100);
+  setBar('p3-bar', f3 * 100);
+  document.getElementById('p3-label').textContent = vl.l;
+  document.getElementById('p3-label').style.color = vl.c;
+  document.getElementById('p3-conf').textContent = confLabel('p3');
+
+  document.getElementById('p4-score').textContent = Math.round(f4 * 100);
+  setBar('p4-bar', f4 * 100);
+  document.getElementById('p4-label').textContent = ll.l;
+  document.getElementById('p4-label').style.color = ll.c;
+  document.getElementById('p4-conf').textContent = confLabel('p4');
+
+  // Traffic light helper: score → tl class + arrow
+  function tlClass(score, invert) {
+    const s = invert ? 1 - score : score;
+    if (s > 0.65) return { cls: 'tl-green', arrow: '▲' };
+    if (s > 0.48) return { cls: 'tl-blue', arrow: '→' };
+    if (s > 0.32) return { cls: 'tl-amber', arrow: '▼' };
+    return { cls: 'tl-red', arrow: '▼▼' };
+  }
+
+  function applyTL(elId, arrowId, score, label, invert) {
+    const { cls, arrow } = tlClass(score, invert);
+    const el = document.getElementById(elId);
+    el.className = 'tl-pill ' + cls;
+    document.getElementById(elId.replace('tl-', 'cs-')).textContent = label;
+    document.getElementById(arrowId).textContent = arrow;
+  }
+
+  // P1 Structure: high score = trending = good for CTA = green
+  applyTL('tl-struct', 'tl-arrow-struct', f1, sl.l, false);
+  // P2 Appetite: high = risk-on = green
+  applyTL('tl-appetite', 'tl-arrow-appetite', f2, al.l, false);
+  // P3 Vol: high = crisis = RED (invert)
+  applyTL('tl-vol', 'tl-arrow-vol', f3, vl.l, true);
+  // P4 Liquidity: high = illiquid = RED (invert)
+  applyTL('tl-liq', 'tl-arrow-liq', f4, ll.l, true);
+
+  // Master composite
+  let ct = 'Mixed — monitor', masterCls = 'tl-master tl-blue';
+  if (f4 > 0.72 || f3 > 0.82)                              { ct = 'Crisis override';        masterCls = 'tl-master tl-red'; }
+  else if (f4 > 0.55 || f3 > 0.62)                         { ct = 'Stressed — reduce';      masterCls = 'tl-master tl-amber'; }
+  else if (f2 > 0.65 && f1 > 0.55 && f3 < 0.40 && f4 < 0.38) { ct = 'Ideal CTA env.';     masterCls = 'tl-master tl-green'; }
+  else if (f2 < 0.35 && f3 > 0.55)                         { ct = 'Risk-off / defensive';   masterCls = 'tl-master tl-red'; }
+  else if (f1 < 0.40 && f3 < 0.42 && f4 < 0.40)           { ct = 'Mean-rev / low vol';     masterCls = 'tl-master tl-amber'; }
+  document.getElementById('tl-master').className = masterCls;
+  document.getElementById('composite-text').textContent = ct;
+
+  // Portfolio implications
+  const liqP = Math.max(0, f4 - 0.4) * 1.5;
+  const volP = Math.max(0, f3 - 0.5) * 1.2;
+  const totP = clamp(liqP + volP, 0, 0.8);
+  const beta = Math.round(clamp((f2 * 1.3 - 0.25) * (1 - totP), -0.6, 1.2) * 10) / 10;
+  const sz = Math.round(clamp(1 - totP * 0.9, 0.15, 1.0) * 100);
+  const lev = Math.round(clamp(1.8 - f3 - f4 * 0.5, 0.4, 2.2) * 10) / 10;
+
+  document.getElementById('impl-beta').innerHTML =
+    implRow('Net beta', beta.toFixed(1)) +
+    implRow('Position size', sz + '% of max') +
+    implRow('Gross leverage', lev.toFixed(1) + 'x') +
+    implRow('Liq. penalty', Math.round(liqP * 100) + 'pts') +
+    implRow('Vol. penalty', Math.round(volP * 100) + 'pts');
+
+  const tw = Math.round(f1 * 55), mr = Math.round((1 - f1) * 35);
+  const lr = Math.round(Math.max(0, f2 * 45 - f3 * 18 - f4 * 15));
+  const hw = Math.round(Math.max(0, (f3 + f4) * 30 + (1 - f2) * 12));
+  const cw = Math.max(0, 100 - tw - mr - lr - hw);
+  document.getElementById('impl-strategy').innerHTML =
+    implRow('Trend following', tw + '%') +
+    implRow('Mean reversion', mr + '%') +
+    implRow('Long risk', lr + '%') +
+    implRow('Hedges / vol', hw + '%') +
+    implRow('Cash', cw + '%');
+
+  const slip = f4 > 0.6 ? 'Widen 3–5x' : f4 > 0.4 ? 'Add 25–50bps' : 'Normal';
+  const venue = f4 > 0.6 ? 'Futures only' : 'Futures preferred';
+  const timing = f3 > 0.7 ? 'Close only' : f3 > 0.5 ? 'Avoid open 30m' : 'Normal intraday';
+  document.getElementById('impl-exec').innerHTML =
+    implRow('Slippage', slip) +
+    implRow('Venue', venue) +
+    implRow('Timing', timing);
+
+  // Analogue
+  const isCrisis = f4 > 0.72 || f3 > 0.82;
+  const isTrend = f1 > 0.57;
+  const isOn = f2 > 0.57;
+  const isOff = f2 < 0.43;
+  const isHV = f3 > 0.60;
+  const isLV = f3 < 0.38;
+  const isThin = f4 > 0.55;
+  let analogue = 'Mixed composite. No strong allocation bias — hold current positions, monitor daily.';
+  if (isCrisis && isThin) analogue = 'Mar 2020 / Oct 2008 — Liquidity seized. Vol spiked before price moved. Minimum viable sizing. Listed futures only. Do not add trend until liquidity normalises over 3+ days.';
+  else if (isTrend && isOn && isLV && !isThin) analogue = '2017 melt-up / 2019 recovery — Ideal CTA environment. Max trend exposure. Long equity, EM carry, commodity longs. Size up.';
+  else if (isTrend && isOff && isHV) analogue = '2022 bear market — CTA trend works short side. Short equity / long USD / energy. Sharply reduced beta. Execution still functional.';
+  else if (!isTrend && isOn && isLV) analogue = '2017 range-bound / 2021 chop — Dangerous for trend CTAs. Favour stat-arb, short vol, pairs. Reduce trend allocation.';
+  else if (!isTrend && isOff && isHV) analogue = '2011 EU crisis / 2015–16 — Whipsaw territory. No clean trend. Reduce gross leverage. Hold only liquid hedges.';
+  else if (!isTrend && isOff && isThin) analogue = 'Aug 2015 flash crash — Thin liquidity amplifying moves. Maximum defensive posture. Cash and short-dated treasuries only.';
+  document.getElementById('analogue-text').textContent = analogue;
+}
+
+function setSliders(vals) {
+  Object.entries(vals).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+  for (let i = 0; i < 4; i++) update();
+}
+
+function loadScenario(s) {
+  const sc = {
+    '2022': { adx:42,hurst:65,autocorr:18,madisperse:-14,atr:18,catc:3,hycredit:560,vixterm:-8,copgold:14,spytlt:-20,dxy:20,ted:30,vix:34,rviv:12,vvix:130,vvixroc:22,skew:22,vixslope:-8,amihud:28,sofr:18,spyvol:12,bidask:18,hlrange:180,adjvol:-8 },
+    '2017': { adx:18,hurst:42,autocorr:-8,madisperse:12,atr:-10,catc:2,hycredit:160,vixterm:12,copgold:32,spytlt:20,dxy:-10,ted:-15,vix:11,rviv:-8,vvix:72,vvixroc:-12,skew:4,vixslope:14,amihud:5,sofr:4,spyvol:-8,bidask:2,hlrange:88,adjvol:10 },
+    '2020': { adx:52,hurst:72,autocorr:28,madisperse:-28,atr:28,catc:4,hycredit:840,vixterm:-15,copgold:11,spytlt:-28,dxy:28,ted:45,vix:75,rviv:18,vvix:175,vvixroc:28,skew:28,vixslope:-18,amihud:88,sofr:85,spyvol:28,bidask:45,hlrange:280,adjvol:18 },
+    '2018': { adx:34,hurst:58,autocorr:14,madisperse:-8,atr:12,catc:3,hycredit:420,vixterm:-6,copgold:18,spytlt:-14,dxy:14,ted:22,vix:28,rviv:8,vvix:148,vvixroc:18,skew:18,vixslope:-5,amihud:38,sofr:22,spyvol:18,bidask:22,hlrange:155,adjvol:-2 }
+  };
+  if (sc[s]) setSliders(sc[s]);
+}
+
+function randomize() {
+  const f = { adx:[0,60],hurst:[20,80],autocorr:[-40,40],madisperse:[-25,25],atr:[-25,25],catc:[0,4],hycredit:[100,900],vixterm:[-15,15],copgold:[10,40],spytlt:[-30,30],dxy:[-30,30],ted:[-20,50],vix:[9,80],rviv:[-20,20],vvix:[60,180],vvixroc:[-30,30],skew:[0,30],vixslope:[-20,20],amihud:[0,100],sofr:[0,100],spyvol:[-30,30],bidask:[1,50],hlrange:[80,300],adjvol:[-30,30] };
+  const v = {};
+  Object.entries(f).forEach(([id,[lo,hi]]) => { v[id] = Math.round(lo + Math.random() * (hi - lo)); });
+  setSliders(v);
+}
+
+for (let i = 0; i < 4; i++) update();
+
+// ============= LIVE MARKET DATA =============
+// Fetches daily quotes via Yahoo Finance, routed through public CORS proxies.
+// Updates 5 sliders that have direct live equivalents: VIX, VVIX, SKEW, VIX9D-VIX3M slope, Copper/Gold.
+// Other sliders (Hurst, Amihud, HY spread, autocorr, ADX, STLFSI4) need multi-day history or a
+// paid key — they remain manual. Refresh every 60s; on failure, status shows "Feed error".
+
+const LIVE_TICKERS = ['SPY','^VIX','^VVIX','^SKEW','^VIX9D','^VIX3M','TLT','GLD','CPER','DX-Y.NYB'];
+const CHIP_MAP = {'SPY':'spy','^VIX':'vix','^VVIX':'vvix','^SKEW':'skew','^VIX9D':'vix9d','^VIX3M':'vix3m','TLT':'tlt','GLD':'gld','CPER':'cper','DX-Y.NYB':'dxy'};
+const PROXIES = [
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u)
+];
+
+async function fetchYahoo(symbol) {
+  const yahoo = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol) + '?interval=1d&range=5d';
+  for (const proxy of PROXIES) {
+    try {
+      const r = await fetch(proxy(yahoo));
+      if (!r.ok) continue;
+      const j = await r.json();
+      const result = j.chart && j.chart.result && j.chart.result[0];
+      if (!result) continue;
+      const m = result.meta;
+      if (typeof m.regularMarketPrice !== 'number') continue;
+      return { symbol, price: m.regularMarketPrice, prev: m.chartPreviousClose || m.previousClose || m.regularMarketPrice };
+    } catch (e) { /* try next proxy */ }
+  }
+  return null;
+}
+
+function setChip(id, price, prev, dp) {
+  const vEl = document.getElementById('q-' + id);
+  const cEl = document.getElementById('qc-' + id);
+  if (!vEl || !cEl) return;
+  vEl.textContent = price.toFixed(dp);
+  if (prev && prev > 0) {
+    const pct = ((price - prev) / prev) * 100;
+    const sign = pct >= 0 ? '+' : '';
+    cEl.textContent = sign + pct.toFixed(2) + '%';
+    cEl.className = 'qchip-chg ' + (pct >= 0 ? 'qchg-up' : 'qchg-dn');
+  } else {
+    cEl.textContent = '';
+  }
+}
+
+async function fetchLive() {
+  const st = document.getElementById('qstatus');
+  const stText = document.getElementById('qstatus-text');
+  st.className = 'qstatus';
+  stText.textContent = 'Fetching...';
+
+  const results = await Promise.all(LIVE_TICKERS.map(t => fetchYahoo(t)));
+  const q = {};
+  LIVE_TICKERS.forEach((t, i) => { if (results[i]) q[t] = results[i]; });
+
+  const gotCount = Object.keys(q).length;
+  if (gotCount === 0) {
+    st.className = 'qstatus err';
+    stText.textContent = 'Feed error — using slider values';
+    return;
+  }
+
+  // Update quote chips
+  for (const t of LIVE_TICKERS) {
+    if (q[t]) setChip(CHIP_MAP[t], q[t].price, q[t].prev, 2);
+  }
+
+  // Auto-populate sliders that map 1:1 to live observables
+  if (q['^VIX']) {
+    document.getElementById('vix').value = Math.round(clamp(q['^VIX'].price, 9, 80));
+  }
+  if (q['^VVIX']) {
+    document.getElementById('vvix').value = Math.round(clamp(q['^VVIX'].price, 60, 180));
+  }
+  if (q['^SKEW']) {
+    // ^SKEW is typically 100-170; slider range 0-30 represents (SKEW - 100)
+    document.getElementById('skew').value = Math.round(clamp(q['^SKEW'].price - 100, 0, 30));
+  }
+  if (q['^VIX9D'] && q['^VIX3M']) {
+    const slope = q['^VIX9D'].price - q['^VIX3M'].price;
+    // vixslope slider: value/10 displayed; range ±20 = ±2.0
+    document.getElementById('vixslope').value = Math.round(clamp(slope * 10, -20, 20));
+    // vixterm (P2 risk appetite): inverted — contango (VIX3M > VIX9D → slope<0) = risk-on
+    document.getElementById('vixterm').value = Math.round(clamp(-slope, -15, 15));
+  }
+  if (q['CPER'] && q['GLD']) {
+    const ratio = q['CPER'].price / q['GLD'].price;
+    // slider value/100; range 10-40 = 0.10-0.40
+    document.getElementById('copgold').value = Math.round(clamp(ratio * 100, 10, 40));
+  }
+
+  update();
+
+  st.className = 'qstatus ok';
+  const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  stText.textContent = 'Live · ' + gotCount + '/' + LIVE_TICKERS.length + ' · ' + ts;
+}
+
+fetchLive();
+setInterval(fetchLive, 60000);
+</script>
+</body>
+</html>
