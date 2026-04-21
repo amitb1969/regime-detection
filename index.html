@@ -1453,7 +1453,17 @@ async function fetchYahoo(symbol) {
       if (!result) continue;
       const m = result.meta;
       if (typeof m.regularMarketPrice !== 'number') continue;
-      return { symbol, price: m.regularMarketPrice, prev: m.chartPreviousClose || m.previousClose || m.regularMarketPrice };
+      // meta.previousClose = prior trading day's close (correct for daily % change).
+      // meta.chartPreviousClose = close before chart range starts — wrong for range>1d.
+      // Fallback: second-to-last close in the bar array.
+      let prev = m.previousClose;
+      if (typeof prev !== 'number') {
+        const closes = (result.indicators && result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) || [];
+        const valid = closes.filter(c => typeof c === 'number');
+        if (valid.length >= 2) prev = valid[valid.length - 2];
+      }
+      if (typeof prev !== 'number') prev = m.regularMarketPrice;
+      return { symbol, price: m.regularMarketPrice, prev };
     } catch (e) { /* try next proxy */ }
   }
   return null;
